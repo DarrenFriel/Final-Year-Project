@@ -13,9 +13,12 @@ import matplotlib.pyplot as plt
 
 def load_cow_images(dataset_path):
     cows = {}
+    # loop through folders in dataset
     for cow_id in sorted(os.listdir(dataset_path)):
         cow_dir = os.path.join(dataset_path, cow_id)
+
         if os.path.isdir(cow_dir):
+            # collect image files
             images = [
                 os.path.join(cow_dir, f)
                 for f in os.listdir(cow_dir)
@@ -27,27 +30,31 @@ def load_cow_images(dataset_path):
 
 
 # -------------------------------
-# 2. Load + preprocess images
+# 2. Load image
 # -------------------------------
 
 def load_face(image_path):
-    img = cv2.imread(image_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.imread(image_path)              # read image
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # convert BGR → RGB
     return img
 
 
 # -------------------------------
-# 3. Create the feature extractor (ResNet50)
+# 3. Create feature extractor
 # -------------------------------
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print("Using device:", device)
 
+# load pretrained ResNet50
 resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-resnet = torch.nn.Sequential(*list(resnet.children())[:-1])  # remove final classifier
-resnet.to(device)
-resnet.eval()
 
+# remove final classification layer → we get embeddings
+resnet = torch.nn.Sequential(*list(resnet.children())[:-1])
+resnet.to(device)
+resnet.eval()  # inference mode
+
+# preprocessing required for ResNet
 preprocess = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize((224, 224)),
@@ -58,14 +65,16 @@ preprocess = transforms.Compose([
 
 
 # -------------------------------
-# 4. Embedding extractor
+# 4. Extract embedding
 # -------------------------------
 
 def get_embedding(img):
-    img_t = preprocess(img).unsqueeze(0).to(device)
-    with torch.no_grad():
+    img_t = preprocess(img).unsqueeze(0).to(device)  # add batch dimension
+
+    with torch.no_grad():             # no training
         emb = resnet(img_t).squeeze().cpu().numpy()
-    emb = emb / norm(emb)  # Normalize for cosine similarity
+
+    emb = emb / norm(emb)            # normalize vector
     return emb
 
 
@@ -74,22 +83,24 @@ def get_embedding(img):
 # -------------------------------
 
 def similarity(e1, e2):
-    return dot(e1, e2)
+    return dot(e1, e2)              # cosine = dot product of normalized vectors
 
 
 # -------------------------------
-# 6. Load dataset + compute all embeddings
+# 6. Compute embeddings
 # -------------------------------
 
-dataset_path = "Cattely"  # <-- CHANGE THIS TO YOUR FOLDER NAME
+dataset_path = "Cattely"
 cows = load_cow_images(dataset_path)
 
 print("Found cows:", list(cows.keys()))
 
 cow_embeddings = {}
 
+# loop through every image and compute embedding
 for cow_id, image_paths in cows.items():
     cow_embeddings[cow_id] = []
+
     for img_path in image_paths:
         face = load_face(img_path)
         emb = get_embedding(face)
@@ -99,7 +110,7 @@ print("Embeddings computed!")
 
 
 # -------------------------------
-# 7. Show sample image + compare two cows
+# 7. Show image
 # -------------------------------
 
 def show_image(image_path):
@@ -109,7 +120,7 @@ def show_image(image_path):
     plt.show()
 
 
-# example comparison with the first two cows found
+# compare first two cows
 cowA, cowB = list(cows.keys())[:2]
 
 print("\nComparing:")
@@ -128,6 +139,10 @@ show_image(cows[cowA][0])
 print("\nShowing Cow B face:")
 show_image(cows[cowB][0])
 
+
+# -------------------------------
+# Show two images
+# -------------------------------
 
 def show_side_by_side(path1, path2, title1="", title2=""):
     img1 = load_face(path1)
@@ -149,19 +164,21 @@ def show_side_by_side(path1, path2, title1="", title2=""):
 
 
 # -------------------------------
-# 8. Automated identification test
+# 8. Identification test
 # -------------------------------
 
 def test_identification(cow_embeddings):
     cows_list = list(cow_embeddings.keys())
 
-    for cow in cows_list[:5]:  # test first 5 cows
+    # test a few cows
+    for cow in cows_list[:5]:
         if len(cow_embeddings[cow]) < 2:
-            continue  # need at least 2 images
+            continue
+
         same1 = cow_embeddings[cow][0]
         same2 = cow_embeddings[cow][1]
 
-        # pick next cow
+        # compare to next cow
         other = cows_list[(cows_list.index(cow) + 1) % len(cows_list)]
         diff = cow_embeddings[other][0]
 
@@ -172,9 +189,11 @@ def test_identification(cow_embeddings):
 
 print("\nRunning identification test...")
 test_identification(cow_embeddings)
-# ------------------------------------------------------
-# Show the last two cows' first images side-by-side
-# ------------------------------------------------------
+
+
+# -------------------------------
+# Compare two specific cows
+# -------------------------------
 
 cow1 = "s1557"
 cow2 = "s1607"
@@ -193,5 +212,6 @@ show_side_by_side(
     title1=cow1,
     title2=f"{cow2} (sim={sim:.3f})"
 )
+
 
 
