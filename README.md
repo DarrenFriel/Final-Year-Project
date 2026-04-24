@@ -7,4 +7,6 @@ Week 6: Began work on coding pipeline and documentation on implementation.
 Week 7: Worked on draft of implementation chapter and coding the model
 Week 8: Redrafting implementation chapter and beginning work on evaluation/testing chapter
 Week 9: Updated the code on the model
-Week 10: 
+Week 10: adjusted code and updated implementation chapter
+Week 11: Updated testing and evaluation chapter
+Week 12: Finalised project report and project code
